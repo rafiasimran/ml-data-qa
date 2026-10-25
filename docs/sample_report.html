@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Data QA Report — production-line parts</title>
+<style>
+  :root { --fg:#1a1d21; --muted:#6b7280; --line:#e3e6ea; --bg:#ffffff; --card:#f7f8fa; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --fg:#e6e8ea; --muted:#9aa3ad; --line:#2c3238; --bg:#15181b; --card:#1d2126; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:20px; }
+  .verdict { padding:14px 18px; border-radius:8px; font-weight:600; margin-bottom:8px;
+    background:#fdecea;
+    color:#8c1c13; }
+  .verdict small { display:block; font-weight:400; margin-top:4px; }
+  .tiles { display:flex; gap:10px; flex-wrap:wrap; margin:16px 0 24px; }
+  .tile { flex:1 1 120px; background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:12px 14px; }
+  .tile b { display:block; font-size:22px; }
+  .tile span { color:var(--muted); font-size:12px; text-transform:uppercase;
+    letter-spacing:.06em; }
+  table { width:100%; border-collapse:collapse; }
+  td { border-top:1px solid var(--line); padding:14px 8px; vertical-align:top; }
+  td.badge { width:86px; }
+  .pass, .sev { font-size:11px; font-weight:700; letter-spacing:.05em;
+    padding:3px 7px; border-radius:4px; }
+  .pass { color:#1b5e38; background:#e7f5ec; }
+  .cid { font:600 11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); }
+  .cname { font-weight:600; margin:1px 0 3px; }
+  .csum { color:var(--muted); font-size:14px; }
+  .remedy { margin:8px 0 0; padding-left:11px; border-left:2px solid var(--line);
+    font-size:14px; }
+  details { margin-top:8px; }
+  summary { cursor:pointer; color:var(--muted); font-size:12px; }
+  pre { background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:10px; overflow:auto; font-size:12px; max-height:300px; }
+  tr.ok .cname { font-weight:500; }
+</style></head><body><div class="wrap">
+  <h1>Data QA Report</h1>
+  <div class="meta">production-line parts &middot; 2026-10-12T12:57:44+00:00 &middot;
+    9,225 train / 3,255 test rows</div>
+  <div class="verdict">NOT FIT TO TRAIN
+    <small>3 blocking issue(s). A model scored on this split will report a number that cannot be believed.</small></div>
+  <div class="tiles">
+    <div class="tile"><b>11/21</b><span>checks passed</span></div>
+    <div class="tile"><b>3</b><span>blocker</span></div>
+    <div class="tile"><b>5</b><span>major</span></div>
+    <div class="tile"><b>2</b><span>minor</span></div>
+  </div>
+  <table>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8c1c13;background:#fdecea">BLOCKER</span></td>
+          <td>
+            <div class="cid">LEAK-01</div>
+            <div class="cname">No single feature predicts the target on its own</div>
+            <div class="csum">1 feature(s) predict the target almost alone: rework_code (0.925 AUC)</div>
+            <p class="remedy">Ask when each flagged column gets its value. If it is written after the outcome is known, it cannot be a feature — it is the answer. Drop it and expect the model&#x27;s score to fall sharply; the lower number is the real one.</p><details><summary>evidence</summary><pre>{
+  &quot;auc_by_feature&quot;: {
+    &quot;rework_code&quot;: 0.9248,
+    &quot;tool_wear_min&quot;: 0.6518,
+    &quot;vibration_mm_s&quot;: 0.6437,
+    &quot;temp_c&quot;: 0.6053,
+    &quot;pressure_bar&quot;: 0.5806,
+    &quot;tool_id&quot;: 0.5237,
+    &quot;shift&quot;: 0.5105,
+    &quot;line&quot;: 0.5096,
+    &quot;cycle_time_s&quot;: 0.5088,
+    &quot;humidity_pct&quot;: 0.5043
+  },
+  &quot;suspects&quot;: {
+    &quot;rework_code&quot;: 0.9248
+  },
+  &quot;threshold&quot;: 0.8,
+  &quot;id_like_columns_skipped&quot;: []
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8c1c13;background:#fdecea">BLOCKER</span></td>
+          <td>
+            <div class="cid">LEAK-02</div>
+            <div class="cname">Missingness does not predict the target</div>
+            <div class="csum">1 column(s) leak through their missingness: vibration_mm_s (missing 7.13x more often in one class)</div>
+            <p class="remedy">Imputing will not fix this — the pattern survives imputation and the model picks it up through the missing-value indicator. Find out why the sensor drops out more often for one class. If the dropout is caused by the outcome rather than happening to coincide with it, the column cannot be used at all.</p><details><summary>evidence</summary><pre>{
+  &quot;by_column&quot;: {
+    &quot;vibration_mm_s&quot;: {
+      &quot;missing_rate_when_positive&quot;: 0.208,
+      &quot;missing_rate_when_negative&quot;: 0.0292,
+      &quot;rate_ratio&quot;: 7.13,
+      &quot;gap_pct_points&quot;: 17.89,
+      &quot;auc_of_indicator&quot;: 0.5894
+    }
+  },
+  &quot;suspects&quot;: {
+    &quot;vibration_mm_s&quot;: 7.13
+  },
+  &quot;criteria&quot;: {
+    &quot;rate_ratio_at_or_above&quot;: 2.0,
+    &quot;and_gap_pct_points_at_or_above&quot;: 2.0,
+    &quot;auc_threshold_reported_but_not_used&quot;: 0.6
+  }
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8c1c13;background:#fdecea">BLOCKER</span></td>
+          <td>
+            <div class="cid">SPLIT-01</div>
+            <div class="cname">Train and test do not overlap</div>
+            <div class="csum">286 row(s) appear in both train and test</div>
+            <p class="remedy">Rebuild the split from deduplicated data, grouping by the real unit of observation. Until then no score measured on this test set means anything, and a higher score means more contamination rather than a better model.</p><details><summary>evidence</summary><pre>{
+  &quot;shared_id_values&quot;: 286,
+  &quot;id_column&quot;: &quot;part_id&quot;,
+  &quot;examples&quot;: [
+    &quot;P0000056&quot;,
+    &quot;P0000067&quot;,
+    &quot;P0000094&quot;,
+    &quot;P0000154&quot;,
+    &quot;P0000253&quot;
+  ],
+  &quot;identical_content_rows&quot;: 209
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8a5200;background:#fdf3e2">MAJOR</span></td>
+          <td>
+            <div class="cid">DRIFT-04</div>
+            <div class="cname">Features are stable over time</div>
+            <div class="csum">1 feature(s) drift across the period: humidity_pct (PSI 1.2704)</div>
+            <p class="remedy">This drift is invisible to a train-versus-test comparison when the split was random, because the change lands on both halves equally. It is still real, and production only sees the later period. Find what changed — a recalibrated instrument, a new supplier, a process revision — and decide whether the earlier data should be used for training at all.</p><details><summary>evidence</summary><pre>{
+  &quot;psi_by_feature_early_vs_late&quot;: {
+    &quot;humidity_pct&quot;: 1.2704,
+    &quot;cycle_time_s&quot;: 0.0068,
+    &quot;vibration_mm_s&quot;: 0.0058,
+    &quot;pressure_bar&quot;: 0.0037,
+    &quot;tool_wear_min&quot;: 0.0031,
+    &quot;temp_c&quot;: 0.0018
+  },
+  &quot;failing&quot;: {
+    &quot;humidity_pct&quot;: 1.2704
+  },
+  &quot;early_period&quot;: [
+    &quot;2026-01-06 06:00:00&quot;,
+    &quot;2026-01-29 15:00:00&quot;
+  ],
+  &quot;late_period&quot;: [
+    &quot;2026-01-29 15:04:00&quot;,
+    &quot;2026-02-08 13:56:00&quot;
+  ],
+  &quot;note&quot;: &quot;Compares the first 70% of the period against the last 30%, independently of how train and test were split.&quot;
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8a5200;background:#fdf3e2">MAJOR</span></td>
+          <td>
+            <div class="cid">DUP-01</div>
+            <div class="cname">No duplicate rows within train</div>
+            <div class="csum">47 exact duplicate row(s) in train (0.51%)</div>
+            <p class="remedy">Duplicates make the model confident about whatever it has seen twice and inflate the effective sample size. Deduplicate before splitting, not after — deduplicating after lets copies of one row sit on both sides.</p><details><summary>evidence</summary><pre>{
+  &quot;duplicate_rows&quot;: 47,
+  &quot;duplicate_pct&quot;: 0.51
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8a5200;background:#fdf3e2">MAJOR</span></td>
+          <td>
+            <div class="cid">DUP-02</div>
+            <div class="cname">Identifiers are unique</div>
+            <div class="csum">170 repeated value(s) in &#x27;part_id&#x27;</div>
+            <p class="remedy">A repeated identifier means either a duplicate export or an identifier that does not identify what you assumed. Find out which before modelling.</p><details><summary>evidence</summary><pre>{
+  &quot;id_column&quot;: &quot;part_id&quot;,
+  &quot;repeated&quot;: 170
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8a5200;background:#fdf3e2">MAJOR</span></td>
+          <td>
+            <div class="cid">RANGE-01</div>
+            <div class="cname">Values are physically possible</div>
+            <div class="csum">104 value(s) outside plausible ranges across 2 column(s)</div>
+            <p class="remedy">These are sensor faults, not measurements. Treat them as missing rather than clipping them to the limit, which would invent a reading that was never taken.</p><details><summary>evidence</summary><pre>{
+  &quot;violations&quot;: {
+    &quot;temp_c&quot;: {
+      &quot;count&quot;: 54,
+      &quot;allowed&quot;: [
+        120.0,
+        320.0
+      ],
+      &quot;observed_min&quot;: 192.86,
+      &quot;observed_max&quot;: 9999.0
+    },
+    &quot;pressure_bar&quot;: {
+      &quot;count&quot;: 50,
+      &quot;allowed&quot;: [
+        30.0,
+        140.0
+      ],
+      &quot;observed_min&quot;: -59.61,
+      &quot;observed_max&quot;: 100.51
+    }
+  }
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#8a5200;background:#fdf3e2">MAJOR</span></td>
+          <td>
+            <div class="cid">SPLIT-02</div>
+            <div class="cname">Split respects time order</div>
+            <div class="csum">100% of test rows predate the end of the training period — the split is random, not chronological</div>
+            <p class="remedy">Split on time: train on the earlier period, test on the later one. A random split answers &#x27;can the model interpolate within a period it has seen&#x27;, which is not the question production asks.</p><details><summary>evidence</summary><pre>{
+  &quot;train_range&quot;: [
+    &quot;2026-01-06 06:00:00&quot;,
+    &quot;2026-02-08 13:56:00&quot;
+  ],
+  &quot;test_range&quot;: [
+    &quot;2026-01-06 06:36:00&quot;,
+    &quot;2026-02-08 13:28:00&quot;
+  ],
+  &quot;test_rows_before_train_end_pct&quot;: 100.0
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#3d5a80;background:#eef3f8">MINOR</span></td>
+          <td>
+            <div class="cid">LABEL-04</div>
+            <div class="cname">Label noise is within reason</div>
+            <div class="csum">About 6.93% of sampled rows carry a label their nearest neighbours contradict</div>
+            <p class="remedy">Estimated on a sample, and a surprising label is not automatically a wrong one. Treat it as a prompt to review the inspection process, not a list to delete. It also puts a ceiling on achievable accuracy that is worth knowing before chasing the last few points.</p><details><summary>evidence</summary><pre>{
+  &quot;suspect_pct&quot;: 6.93,
+  &quot;suspect_rows_in_sample&quot;: 104,
+  &quot;method&quot;: &quot;k=10 nearest neighbours, 1500-row sample&quot;
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="bad">
+          <td class="badge"><span class="sev" style="color:#3d5a80;background:#eef3f8">MINOR</span></td>
+          <td>
+            <div class="cid">SCHEMA-04</div>
+            <div class="cname">No constant columns</div>
+            <div class="csum">1 constant column(s): plant_code</div>
+            <p class="remedy">A column with one value carries no information. Harmless to a tree model, but it inflates the feature count and hides that the field was never populated.</p><details><summary>evidence</summary><pre>{
+  &quot;constant_columns&quot;: [
+    &quot;plant_code&quot;
+  ]
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">LABEL-01</div>
+            <div class="cname">Target column is present and complete</div>
+            <div class="csum">Target &#x27;defect&#x27; present with no missing values</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;present&quot;: true,
+  &quot;null_labels&quot;: 0
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">LABEL-02</div>
+            <div class="cname">Target takes only expected values</div>
+            <div class="csum">Target values: [0, 1]</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;observed_values&quot;: [
+    &quot;0&quot;,
+    &quot;1&quot;
+  ]
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">SCHEMA-01</div>
+            <div class="cname">Expected columns are present</div>
+            <div class="csum">All expected columns present; 2 extra column(s) not in the contract</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;missing&quot;: [],
+  &quot;unexpected&quot;: [
+    &quot;plant_code&quot;,
+    &quot;rework_code&quot;
+  ]
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">SCHEMA-03</div>
+            <div class="cname">Train and test share the same columns</div>
+            <div class="csum">Train and test columns match</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;only_in_train&quot;: [],
+  &quot;only_in_test&quot;: []
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">DRIFT-01</div>
+            <div class="cname">Numeric features have the same distribution in train and test</div>
+            <div class="csum">No feature exceeds PSI 0.25</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;psi_by_feature&quot;: {
+    &quot;temp_c&quot;: 0.0068,
+    &quot;cycle_time_s&quot;: 0.0054,
+    &quot;tool_wear_min&quot;: 0.0042,
+    &quot;vibration_mm_s&quot;: 0.0033,
+    &quot;pressure_bar&quot;: 0.0032,
+    &quot;humidity_pct&quot;: 0.0008
+  },
+  &quot;failing&quot;: {},
+  &quot;warning&quot;: {},
+  &quot;thresholds&quot;: {
+    &quot;warn&quot;: 0.1,
+    &quot;fail&quot;: 0.25
+  }
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">DRIFT-02</div>
+            <div class="cname">Categorical levels are consistent across train and test</div>
+            <div class="csum">All categorical levels appear in both splits</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;columns&quot;: {}
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">DRIFT-03</div>
+            <div class="cname">Target rate is stable across splits</div>
+            <div class="csum">Positive rate 17.51% in train, 18.19% in test (4% relative difference)</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;train_positive_rate&quot;: 0.1751,
+  &quot;test_positive_rate&quot;: 0.1819,
+  &quot;relative_difference&quot;: 0.0389
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">LABEL-03</div>
+            <div class="cname">Classes are usably balanced</div>
+            <div class="csum">Minority class is 17.51% of rows</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;class_counts&quot;: {
+    &quot;0&quot;: 7610,
+    &quot;1&quot;: 1615
+  },
+  &quot;class_share_pct&quot;: {
+    &quot;0&quot;: 82.49,
+    &quot;1&quot;: 17.51
+  },
+  &quot;accuracy_of_predicting_majority&quot;: 82.49
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">SCHEMA-02</div>
+            <div class="cname">Column types match the contract</div>
+            <div class="csum">All column types as expected</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;mismatches&quot;: {}
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">LEAK-03</div>
+            <div class="cname">No identifier-like columns among the features</div>
+            <div class="csum">No identifier-like feature columns</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;distinct_value_ratio&quot;: {}
+}</pre></details>
+          </td>
+        </tr>
+        <tr class="ok">
+          <td class="badge"><span class="pass">PASS</span></td>
+          <td>
+            <div class="cid">NULL-01</div>
+            <div class="cname">Missing value rates are within limits</div>
+            <div class="csum">No column above 10.0% missing</div>
+            <details><summary>evidence</summary><pre>{
+  &quot;missing_pct&quot;: {
+    &quot;vibration_mm_s&quot;: 6.05
+  }
+}</pre></details>
+          </td>
+        </tr></table>
+</div></body></html>
