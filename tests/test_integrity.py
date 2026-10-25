@@ -1,4 +1,4 @@
-"""Split integrity — the checks that decide whether a score can be believed."""
+"""Split integrity checks."""
 import pandas as pd
 
 from dataqa.checks.integrity import (

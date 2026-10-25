@@ -53,11 +53,10 @@ def test_catches_missingness_that_encodes_the_target(clean_train):
     assert not result.passed
     assert "vibration_mm_s" in result.evidence["suspects"]
 
-    # And here is why the AUC-based version missed it. The sensor drops out
-    # several times more often on one class — unmistakable — while the AUC of
-    # the indicator sits close to chance, because a binary flag's AUC is capped
-    # at (sensitivity + specificity) / 2. Pinning an exact AUC would make this
-    # test brittle; the gap between the two numbers is the real point.
+    # Why the old AUC version missed it: the sensor drops out several times
+    # more often on one class, but the indicator's AUC stays close to 0.5
+    # because a yes/no flag's AUC is (sensitivity + specificity) / 2.
+    # Not pinning an exact AUC, so the test isn't brittle.
     found = result.evidence["by_column"]["vibration_mm_s"]
     assert found["rate_ratio"] > 5.0
     assert found["auc_of_indicator"] < 0.65
