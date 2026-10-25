@@ -1,9 +1,6 @@
 """
-Thresholds, in one place and named.
-
-Every number here is a judgement call, so each one carries the reasoning. A
-threshold with no stated reason gets tuned until the suite stops complaining,
-which is how a quality gate becomes decoration.
+All thresholds in one place. Each one is a judgement call, so I wrote down
+why I picked it.
 """
 from __future__ import annotations
 
@@ -46,9 +43,9 @@ PLAUSIBLE_RANGES: dict[str, tuple[float, float]] = {
 
 @dataclass(frozen=True)
 class Thresholds:
-    # A single feature that predicts the target this well on its own is not a
-    # feature, it is the answer written in another column. 0.80 is low enough
-    # to catch a leak and high enough that a genuinely strong sensor passes.
+    # A single feature that predicts the target this well on its own is
+    # probably the answer in disguise. 0.80 catches leaks but still lets a
+    # strong real sensor through.
     leakage_auc: float = float(os.getenv("LEAKAGE_AUC", "0.80"))
 
     # Whether a value is MISSING should not predict the target. If it does,
@@ -68,8 +65,7 @@ class Thresholds:
     # Exact duplicates are never acceptable in volume; a few can be genuine.
     max_duplicate_pct: float = float(os.getenv("MAX_DUPLICATE_PCT", "0.5"))
 
-    # Any overlap at all between train and test is a blocker. There is no
-    # tolerable amount of answer key in the exam.
+    # Any overlap at all between train and test is a blocker.
     max_train_test_overlap: int = 0
 
     max_missing_pct: float = float(os.getenv("MAX_MISSING_PCT", "10.0"))

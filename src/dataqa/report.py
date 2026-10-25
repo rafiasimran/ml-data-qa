@@ -20,7 +20,7 @@ def to_text(report: QAReport) -> str:
     width = 74
     lines = [
         "=" * width,
-        f"  DATA QA REPORT — {report.dataset_name}",
+        f"  DATA QA REPORT: {report.dataset_name}",
         f"  {report.run_at_utc}",
         "=" * width,
         f"  train {report.row_counts.get('train_rows', 0):,} rows   "
@@ -98,7 +98,7 @@ def to_html(report: QAReport) -> str:
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Data QA Report — {html.escape(report.dataset_name)}</title>
+<title>Data QA Report: {html.escape(report.dataset_name)}</title>
 <style>
   :root {{ --fg:#1a1d21; --muted:#6b7280; --line:#e3e6ea; --bg:#ffffff; --card:#f7f8fa; }}
   @media (prefers-color-scheme: dark) {{

@@ -1,10 +1,7 @@
 """
-The handful of statistics the checks need, implemented here rather than pulled
-from scikit-learn.
-
-Two reasons. The suite stays installable with pandas and numpy alone, so it can
-run anywhere the data lands. And a reviewer can see exactly what the numbers
-mean instead of taking a library call on trust.
+The statistics the checks need, written out here instead of imported from
+scikit-learn. This keeps the suite down to pandas and numpy, and makes it easy
+to see exactly how each number is calculated.
 """
 from __future__ import annotations
 
@@ -40,9 +37,9 @@ def directionless_auc(scores: pd.Series, labels: pd.Series) -> float:
     """
     AUC folded about 0.5.
 
-    A feature with AUC 0.05 is as informative as one with 0.95 — it just points
-    the other way. For leak detection the direction is irrelevant, so compare
-    the distance from chance.
+    A feature with AUC 0.05 is as informative as one with 0.95, it just points
+    the other way. For leak detection the direction doesn't matter, so we look
+    at the distance from 0.5.
     """
     a = auc(scores, labels)
     if np.isnan(a):

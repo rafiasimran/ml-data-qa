@@ -1,10 +1,9 @@
 """
 Result types for the suite.
 
-Modelled on a software QA test report rather than a statistics summary, because
-the job is the same one: decide whether this artefact is fit to ship. A dataset
-that fails a BLOCKER check should not be trained on, in the same way a build
-that fails a smoke test should not be released.
+Set up like a software QA test report. A dataset that fails a BLOCKER check
+shouldn't be trained on, the same way a build that fails a smoke test
+shouldn't be released.
 """
 from __future__ import annotations
 
@@ -17,10 +16,10 @@ from pathlib import Path
 
 class Severity(str, Enum):
     """
-    Severity is about consequence, not about how unusual the finding is.
+    Severity is about the consequence, not how unusual the finding is.
 
-    BLOCKER  the model trained on this will be wrong in a way the metrics hide.
-             Leakage is the archetype: the score goes UP and the model is junk.
+    BLOCKER  the model will be wrong in a way the metrics hide.
+             e.g. leakage: the score goes up but the model is useless.
     MAJOR    the model will be measurably worse, or a metric will mislead.
     MINOR    worth fixing, no real effect on the model.
     INFO     recorded so the dataset can be described, not a fault.
@@ -49,8 +48,7 @@ class CheckResult:
     passed: bool
     severity: Severity
     summary: str
-    # What a person should actually do about it. A finding without a remedy
-    # is a complaint.
+    # What to actually do about it.
     remedy: str = ""
     # Machine-readable specifics: counts, column names, statistics.
     evidence: dict = field(default_factory=dict)
@@ -89,7 +87,7 @@ class QAReport:
 
     @property
     def sorted_results(self) -> list[CheckResult]:
-        """Failures first, worst severity first — the order a person reads in."""
+        """Failures first, worst severity first."""
         return sorted(
             self.results,
             key=lambda r: (r.passed, SEVERITY_ORDER[r.severity], r.check_id),
@@ -107,9 +105,8 @@ class QAReport:
     @property
     def fit_to_train(self) -> bool:
         """
-        The gate. One BLOCKER is enough to stop the run.
-
-        Not a score, not a percentage. A dataset with leakage is not 94% fine.
+        The gate. One BLOCKER is enough to stop the run. No percentage score
+        on purpose: a dataset with leakage isn't "94% fine".
         """
         return not self.failures_at(Severity.BLOCKER)
 
