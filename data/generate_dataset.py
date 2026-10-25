@@ -45,8 +45,8 @@ def _defect_probability(row: dict, tool_wear: float) -> float:
     """
     The true data-generating process.
 
-    Deliberately weak. A real production line is mostly noise, and a portfolio
-    project that reports 0.98 AUC on synthetic data is telling on itself.
+    Kept weak on purpose. Real production data is mostly noise, so a very
+    high AUC here would be unrealistic.
     """
     z = (
         -3.05
