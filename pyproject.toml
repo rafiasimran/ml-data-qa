@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataqa"
+version = "1.0.0"
+description = "A QA test suite for machine learning training data"
+requires-python = ">=3.10"
+# The suite itself needs only pandas and numpy, so it can run wherever the
+# data lands. scikit-learn is required by the experiment, not by the checks.
+dependencies = ["pandas>=2.0", "numpy>=1.24"]
+
+[project.optional-dependencies]
+experiment = ["scikit-learn>=1.3"]
+dev = ["scikit-learn>=1.3", "pytest>=7.4", "ruff>=0.4"]
+
+[project.scripts]
+dataqa = "dataqa.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
