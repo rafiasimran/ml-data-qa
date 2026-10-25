@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Data QA Report — production-line parts</title>
+<title>Data QA Report: production-line parts</title>
 <style>
   :root { --fg:#1a1d21; --muted:#6b7280; --line:#e3e6ea; --bg:#ffffff; --card:#f7f8fa; }
   @media (prefers-color-scheme: dark) {
@@ -41,7 +41,7 @@
   tr.ok .cname { font-weight:500; }
 </style></head><body><div class="wrap">
   <h1>Data QA Report</h1>
-  <div class="meta">production-line parts &middot; 2026-10-12T12:57:44+00:00 &middot;
+  <div class="meta">production-line parts &middot; 2026-10-25T19:25:37+00:00 &middot;
     9,225 train / 3,255 test rows</div>
   <div class="verdict">NOT FIT TO TRAIN
     <small>3 blocking issue(s). A model scored on this split will report a number that cannot be believed.</small></div>
@@ -58,7 +58,7 @@
             <div class="cid">LEAK-01</div>
             <div class="cname">No single feature predicts the target on its own</div>
             <div class="csum">1 feature(s) predict the target almost alone: rework_code (0.925 AUC)</div>
-            <p class="remedy">Ask when each flagged column gets its value. If it is written after the outcome is known, it cannot be a feature — it is the answer. Drop it and expect the model&#x27;s score to fall sharply; the lower number is the real one.</p><details><summary>evidence</summary><pre>{
+            <p class="remedy">Ask when each flagged column gets its value. If it is written after the outcome is known, it cannot be a feature. Drop it and expect the model&#x27;s score to fall sharply; the lower number is the real one.</p><details><summary>evidence</summary><pre>{
   &quot;auc_by_feature&quot;: {
     &quot;rework_code&quot;: 0.9248,
     &quot;tool_wear_min&quot;: 0.6518,
@@ -85,7 +85,7 @@
             <div class="cid">LEAK-02</div>
             <div class="cname">Missingness does not predict the target</div>
             <div class="csum">1 column(s) leak through their missingness: vibration_mm_s (missing 7.13x more often in one class)</div>
-            <p class="remedy">Imputing will not fix this — the pattern survives imputation and the model picks it up through the missing-value indicator. Find out why the sensor drops out more often for one class. If the dropout is caused by the outcome rather than happening to coincide with it, the column cannot be used at all.</p><details><summary>evidence</summary><pre>{
+            <p class="remedy">Imputing will not fix this. The pattern survives imputation and the model picks it up through the missing-value indicator. Find out why the sensor drops out more often for one class. If the dropout is caused by the outcome rather than happening to coincide with it, the column cannot be used at all.</p><details><summary>evidence</summary><pre>{
   &quot;by_column&quot;: {
     &quot;vibration_mm_s&quot;: {
       &quot;missing_rate_when_positive&quot;: 0.208,
@@ -132,7 +132,7 @@
             <div class="cid">DRIFT-04</div>
             <div class="cname">Features are stable over time</div>
             <div class="csum">1 feature(s) drift across the period: humidity_pct (PSI 1.2704)</div>
-            <p class="remedy">This drift is invisible to a train-versus-test comparison when the split was random, because the change lands on both halves equally. It is still real, and production only sees the later period. Find what changed — a recalibrated instrument, a new supplier, a process revision — and decide whether the earlier data should be used for training at all.</p><details><summary>evidence</summary><pre>{
+            <p class="remedy">This drift is invisible to a train-versus-test comparison when the split was random, because the change lands on both halves equally. It is still real, and production only sees the later period. Find what changed (a recalibrated instrument, a new supplier, a process change) and decide whether the earlier data should be used for training at all.</p><details><summary>evidence</summary><pre>{
   &quot;psi_by_feature_early_vs_late&quot;: {
     &quot;humidity_pct&quot;: 1.2704,
     &quot;cycle_time_s&quot;: 0.0068,
@@ -162,7 +162,7 @@
             <div class="cid">DUP-01</div>
             <div class="cname">No duplicate rows within train</div>
             <div class="csum">47 exact duplicate row(s) in train (0.51%)</div>
-            <p class="remedy">Duplicates make the model confident about whatever it has seen twice and inflate the effective sample size. Deduplicate before splitting, not after — deduplicating after lets copies of one row sit on both sides.</p><details><summary>evidence</summary><pre>{
+            <p class="remedy">Duplicates make the model confident about whatever it has seen twice and inflate the effective sample size. Deduplicate before splitting, not after, otherwise copies of one row can end up on both sides.</p><details><summary>evidence</summary><pre>{
   &quot;duplicate_rows&quot;: 47,
   &quot;duplicate_pct&quot;: 0.51
 }</pre></details>
@@ -215,7 +215,7 @@
           <td>
             <div class="cid">SPLIT-02</div>
             <div class="cname">Split respects time order</div>
-            <div class="csum">100% of test rows predate the end of the training period — the split is random, not chronological</div>
+            <div class="csum">100% of test rows are older than the end of the training period, so the split is random, not by time</div>
             <p class="remedy">Split on time: train on the earlier period, test on the later one. A random split answers &#x27;can the model interpolate within a period it has seen&#x27;, which is not the question production asks.</p><details><summary>evidence</summary><pre>{
   &quot;train_range&quot;: [
     &quot;2026-01-06 06:00:00&quot;,

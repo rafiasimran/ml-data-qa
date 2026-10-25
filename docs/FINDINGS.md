@@ -1,138 +1,66 @@
 # Findings
 
-What building and running this turned up. Written for an interviewer, and for
-me in six months.
+Notes on what I found while building and running this.
 
----
+## 1. The missingness check used the wrong statistic
 
-## The check that used the wrong statistic
+I planted a leak on purpose: the vibration sensor is missing for 21% of defective parts but only 2.9% of good ones. So the fact that a value is missing gives away the answer. Imputing doesn't fix it, because the model can still pick up the pattern from the missing-value indicator.
 
-A missingness leak was planted deliberately: the vibration sensor drops out on
-21% of defective parts and 2.9% of good ones. The fact that a reading is
-*absent* carries the answer, and imputation does not remove it — the model picks
-the pattern back up through the missing-value indicator.
+My first version scored the missing-value indicator with AUC and used a threshold of 0.60. It passed, even though the leak was clearly there.
 
-The check was written to score the missingness indicator with AUC against the
-target, with a threshold of 0.60. It passed. The leak was sitting in plain sight
-and the check declared the dataset clean.
-
-The reason is arithmetic. For a binary indicator,
+The reason is that for a yes/no indicator:
 
 ```
 AUC = (sensitivity + specificity) / 2
 ```
 
-Here that is `(0.208 + 0.971) / 2 = 0.589`, just under the threshold. A sevenfold
-difference in dropout rate — about as blatant as this defect gets — produces an
-AUC barely above chance, because a binary flag can only ever move AUC so far.
-Lowering the threshold would not have fixed it either: at 0.55 the check would
-start firing on noise.
+Here that's `(0.208 + 0.971) / 2 = 0.589`, just below 0.60. A 7x difference in how often the sensor drops out only gives an AUC a little above chance. Lowering the threshold wouldn't really help either, at 0.55 it would start flagging noise.
 
-The fix was to change the statistic rather than the number. The check now judges
-on the **ratio of missing rates between the classes**, guarded by a minimum
-absolute gap so that 0.10% against 0.03% is not reported as a threefold leak.
-The planted defect is now caught at 7.1×. AUC is still reported alongside,
-because a reviewer will look for it, and because its weakness here is the point.
+So I changed the statistic instead of the threshold. The check now compares the missing rates of the two classes (ratio), with a minimum gap so that something like 0.10% vs 0.03% isn't flagged. The planted leak now shows up at 7.1x. I kept the AUC in the output so you can see the difference.
 
-**The lesson.** A threshold that does not fire is not evidence of clean data.
-I only found this because the defect had been planted on purpose and I knew what
-the check was supposed to say. A validation suite that has never been tested
-against a known-bad dataset is an untested test suite.
+What I learned: a check that doesn't fire doesn't mean the data is clean. I only noticed because I knew the leak was there. There's a regression test for this in `tests/test_leakage.py` that checks both things: the ratio catches it, and AUC alone wouldn't have.
 
-There is a regression test for this in `tests/test_leakage.py`, and it asserts
-both halves: that the ratio catches the leak, and that AUC alone would not have.
+## 2. The random split hid the drift
 
----
+In the generated data the humidity sensor is recalibrated partway through and reads about nine points higher after that. A model trained on the earlier data would misread everything after it.
 
-## The random split hid the drift
+The normal drift check (train vs test) gave **PSI 0.0008**, so basically no drift.
 
-The humidity sensor is recalibrated partway through the period and reads nine
-points high afterwards. This is a real problem: a model fitted before the
-recalibration will misread every value after it.
+That's because the split was random. Rows from before and after the recalibration are spread evenly across both halves, so the difference cancels out. When I sorted the same data by time and compared the first 70% with the last 30%, PSI was **1.27**.
 
-The drift check compared the training set against the test set and found
-**PSI 0.0008** — about as stable as two samples can be.
+So I added `DRIFT-04`, which does exactly that, regardless of how the split was made. In production the model only sees new data, so this is the comparison that matters.
 
-The split was random. Pre- and post-recalibration rows are scattered evenly
-across both halves, so the shift lands on each side equally and cancels. The
-comparison is not wrong; it is answering a different question from the one that
-matters. "Do my two halves match each other" is not "has the process changed".
+## 3. Partly cleaned data is the risky case
 
-Ordering the same data by time and comparing the first 70% against the last 30%
-gives **PSI 1.27**.
-
-So `DRIFT-04` was added, which reassembles train and test, sorts by timestamp
-and compares early against late regardless of how the split was drawn. Production
-only ever serves the latest period, so that is the comparison that predicts what
-deployment will feel like.
-
-**The lesson.** A random split does not just inflate the score. It also conceals
-the drift that will degrade the model later, and it conceals it in a way that
-looks like a clean bill of health.
-
----
-
-## The partially cleaned model is the dangerous one
-
-Three models, same task:
+Three models on the same task:
 
 | Dataset | AUC |
 |---|---|
 | As delivered | 0.9325 |
-| `rework_code` dropped, split untouched | 0.7007 |
-| All blockers addressed, time-based split | 0.5939 |
+| `rework_code` dropped, split unchanged | 0.7007 |
+| All blockers fixed, split by time | 0.5939 |
 
-0.93 is obviously too good — a sceptical reviewer would question it, and would
-go looking for the leak.
+0.93 is obviously too good, so someone would probably question it.
 
-0.70 is the problem. It is a believable number for a hard industrial
-classification task. Nothing about it invites suspicion. It is also still
-inflated by 286 rows sitting on both sides of the split, and by a random split
-on time-ordered data.
+0.70 is the problem. It looks like a normal result for a hard industrial task, so nobody would look closer. But it's still too high because 286 rows are in both train and test, and the split is random on time-ordered data.
 
-Someone who notices the obviously wrong column, removes it, sees a plausible
-score and ships it has done the visible half of the work and produced a result
-that is confidently wrong.
+If you remove the column that looks wrong and stop there, you end up with a result that looks fine and is still wrong.
 
-**The lesson.** Partial cleaning can be worse than none, because it removes the
-symptom that would have prompted the investigation.
+## 4. The honest model is weak
 
----
+0.5939 AUC is not a good model, but it's the correct result for this data, so I'm reporting it as it is.
 
-## The honest model is barely better than chance
+Three reasons it's low:
 
-0.5939 AUC is a weak model. That is the correct result and it is reported as-is.
+- the real signal is weak, which is normal for production data where most variation is noise
+- about 3% of labels are wrong, which limits how good any model can get
+- with the time-based split, the model trains on humidity before the recalibration and is tested on humidity after it
 
-Three things hold it down, all of them real:
+So the next step isn't more tuning or a different algorithm. It's fixing the data: the sensor dropouts, the inspection labels and the recalibration.
 
-- the underlying signal is genuinely weak, as it often is on a production line
-  where most variation is noise
-- roughly 3% of labels are wrong, which puts a ceiling on any model's accuracy
-  that no amount of tuning will lift
-- the time-based split trains on pre-recalibration humidity and tests on
-  post-recalibration humidity, so a feature the model learned to use means
-  something different at test time
+## What I'd add next
 
-The useful conclusion is not "the model needs more tuning". It is that **this
-data is not yet good enough to support this model**, and the next move is to fix
-the sensor dropouts, the inspection consistency and the recalibration record —
-not to try another algorithm.
-
-Reporting 0.59 is more useful to a team than reporting 0.93, because 0.59 points
-at what to do next.
-
----
-
-## Things I would add next
-
-- **Slice-level checks.** Overall balance can look fine while one production line
-  or one shift has almost no positive examples. The model will quietly fail on
-  that slice and the headline metric will not move.
-- **A schema contract in version control**, so an upstream column rename fails
-  loudly at ingestion rather than three checks later.
-- **Confident learning for label noise.** Neighbour disagreement is cheap and
-  rough; cross-validated out-of-fold probabilities would give a better estimate
-  and rank individual rows for review.
-- **Drift thresholds derived from history** rather than the PSI conventions of
-  0.10 and 0.25, which are inherited from credit scoring and are not obviously
-  right for sensor data.
+- **Checks per slice.** The overall class balance can look fine while one production line or shift has almost no defects.
+- **A schema file in version control**, so a renamed column fails right away.
+- **A better label noise method.** The neighbour method is quick but rough. Out-of-fold predictions from cross-validation would give a better estimate and could rank rows for review.
+- **Drift thresholds based on past data.** The 0.10 and 0.25 PSI limits come from credit scoring and might not be right for sensor data.
