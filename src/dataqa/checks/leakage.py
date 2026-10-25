@@ -71,7 +71,7 @@ def check_single_feature_leakage(train: pd.DataFrame, auc_threshold: float) -> C
             ", ".join(f"{c} ({v:.3f} AUC)" for c, v in suspects.items())
         ),
         remedy="Ask when each flagged column gets its value. If it is written after the "
-        "outcome is known, it cannot be a feature — it is the answer. Drop it and expect "
+        "outcome is known, it cannot be a feature. Drop it and expect "
         "the model's score to fall sharply; the lower number is the real one.",
         evidence={
             "auc_by_feature": ranked,
@@ -84,7 +84,7 @@ def check_single_feature_leakage(train: pd.DataFrame, auc_threshold: float) -> C
 
 #: One class missing this many times more often than the other is a leak.
 MISSINGNESS_RATE_RATIO = 2.0
-#: Below this absolute gap the ratio is noise — 0.10% against 0.03% is 3x and means nothing.
+#: Below this absolute gap the ratio is just noise (0.10% vs 0.03% is 3x but means nothing).
 MISSINGNESS_MIN_GAP_PCT = 2.0
 
 
@@ -92,17 +92,14 @@ def check_missingness_leakage(train: pd.DataFrame, auc_threshold: float) -> Chec
     """
     Does the fact that a value is absent predict the target?
 
-    This one hides from the usual checks. The column's values look innocent, its
-    missing rate looks unremarkable, and imputing the mean appears to deal with
-    it — while leaving the pattern that carried the leak fully intact.
+    The usual checks miss this one. The values look normal, the missing rate
+    looks normal, and imputing the mean doesn't remove the pattern.
 
-    Judged on the RATIO of missing rates between the classes, not on AUC. AUC is
-    the wrong statistic for a binary indicator: it is bounded by
-    (sensitivity + specificity) / 2, so a sensor that drops out on 21% of bad
-    parts and 3% of good ones — a sevenfold difference, and an obvious leak —
-    scores only 0.59 and slips under any threshold set for a real feature. The
-    ratio sees it immediately. AUC is still reported alongside, because it is
-    what a reviewer will expect to see and its weakness here is worth showing.
+    Uses the ratio of missing rates between the two classes, not AUC. For a
+    yes/no indicator AUC = (sensitivity + specificity) / 2, so a sensor that
+    drops out on 21% of bad parts and 3% of good ones only gets 0.59 and passes
+    a normal threshold, even though that's a 7x difference. The ratio catches
+    it. AUC is still reported next to it for comparison.
     """
     if TARGET not in train.columns:
         return CheckResult(
@@ -151,7 +148,7 @@ def check_missingness_leakage(train: pd.DataFrame, auc_threshold: float) -> Chec
                 for c in suspects
             )
         ),
-        remedy="Imputing will not fix this — the pattern survives imputation and the model "
+        remedy="Imputing will not fix this. The pattern survives imputation and the model "
         "picks it up through the missing-value indicator. Find out why the sensor drops out "
         "more often for one class. If the dropout is caused by the outcome rather than "
         "happening to coincide with it, the column cannot be used at all.",

@@ -36,8 +36,8 @@ def check_duplicate_rows(train: pd.DataFrame, max_pct: float) -> CheckResult:
         severity=Severity.MAJOR,
         summary=f"{n_dupes:,} exact duplicate row(s) in train ({pct}%)",
         remedy="Duplicates make the model confident about whatever it has seen twice and "
-        "inflate the effective sample size. Deduplicate before splitting, not after — "
-        "deduplicating after lets copies of one row sit on both sides.",
+        "inflate the effective sample size. Deduplicate before splitting, not after, "
+        "otherwise copies of one row can end up on both sides.",
         evidence={"duplicate_rows": n_dupes, "duplicate_pct": pct},
     )
 
@@ -148,8 +148,8 @@ def check_temporal_split(train: pd.DataFrame, test: pd.DataFrame) -> CheckResult
         severity=Severity.MAJOR,
         summary=(
             "Test period follows the training period" if passed else
-            f"{overlap_share:.0%} of test rows predate the end of the training period — "
-            "the split is random, not chronological"
+            f"{overlap_share:.0%} of test rows are older than the end of the training "
+            "period, so the split is random, not by time"
         ),
         remedy="Split on time: train on the earlier period, test on the later one. A random "
         "split answers 'can the model interpolate within a period it has seen', which is "

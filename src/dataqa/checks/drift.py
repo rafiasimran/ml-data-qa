@@ -55,7 +55,7 @@ def check_numeric_drift(
 
 
 def check_categorical_drift(train: pd.DataFrame, test: pd.DataFrame) -> CheckResult:
-    """Categories that appear only on one side break encoders at exactly the wrong moment."""
+    """Categories that only appear on one side will break the encoder later."""
     problems: dict[str, dict] = {}
     for col in _feature_columns(train):
         if col not in test.columns or pd.api.types.is_numeric_dtype(train[col]):
@@ -81,7 +81,7 @@ def check_categorical_drift(train: pd.DataFrame, test: pd.DataFrame) -> CheckRes
             f"{unseen_total} level(s) appear in test but never in train"
         ),
         remedy="A level the model never saw in training has no learned behaviour. Decide "
-        "now how unseen levels are handled — an explicit 'unknown' bucket — rather than "
+        "now how unseen levels are handled (e.g. an 'unknown' bucket) rather than "
         "discovering it when the encoder raises in production.",
         evidence={"columns": problems},
     )
@@ -122,15 +122,11 @@ def check_temporal_drift(
     """
     Compare the earliest period of the data against the latest, ignoring the split.
 
-    Comparing train against test only answers whether the two halves match each
-    other. When the split was made at random, they always will — a process change
-    partway through the period lands evenly on both sides and cancels out. The
-    distribution has still moved; the split has merely hidden it.
-
-    That hidden movement is the one that matters, because production only ever
-    serves the latest period. So this check reassembles the data, orders it by
-    time and compares the first 70% against the last 30%, regardless of how the
-    split was drawn.
+    Train vs test only tells you whether the two halves match. With a random
+    split they always will, because a change in the middle of the period ends
+    up in both halves equally. Production only sees the newest data though, so
+    this check puts the data back together, sorts it by time and compares the
+    first 70% with the last 30%.
     """
     if TIME_COLUMN not in train.columns:
         return CheckResult(
@@ -173,8 +169,8 @@ def check_temporal_drift(
         ),
         remedy="This drift is invisible to a train-versus-test comparison when the split "
         "was random, because the change lands on both halves equally. It is still real, and "
-        "production only sees the later period. Find what changed — a recalibrated "
-        "instrument, a new supplier, a process revision — and decide whether the earlier "
+        "production only sees the later period. Find what changed (a recalibrated "
+        "instrument, a new supplier, a process change) and decide whether the earlier "
         "data should be used for training at all.",
         evidence={
             "psi_by_feature_early_vs_late": ranked,

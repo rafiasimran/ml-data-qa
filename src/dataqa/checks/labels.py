@@ -67,7 +67,7 @@ def check_class_balance(train: pd.DataFrame, min_share_pct: float) -> CheckResul
         severity=Severity.MAJOR,
         summary=(
             f"Minority class is {minority}% of rows" +
-            ("" if passed else f" — below the {min_share_pct}% floor")
+            ("" if passed else f", below the {min_share_pct}% minimum")
         ),
         remedy=(
             f"Accuracy is the wrong metric here: predicting the majority class for every "
@@ -86,9 +86,9 @@ def check_label_noise(train: pd.DataFrame) -> CheckResult:
     """
     Estimate how often a row's label disagrees with its neighbours.
 
-    This cannot prove a label is wrong — a genuinely unusual part looks the same
-    as a mislabelled one. It reports a rate so a human can decide whether the
-    inspection process needs looking at.
+    This can't prove a label is wrong, because an unusual part looks the same
+    as a mislabelled one. It only reports a rate, so a person can decide if the
+    inspection process needs a look.
     """
     if TARGET not in train.columns:
         return CheckResult(
