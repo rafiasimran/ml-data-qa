@@ -1,4 +1,4 @@
-# Generated — reproducible from the generator, so never committed
+# Generated files (can be recreated with the generator)
 data/train.csv
 data/test.csv
 data/planted_defects.json
