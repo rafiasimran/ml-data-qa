@@ -1,0 +1,16 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+      - name: The gate must refuse the deliberately broken dataset
+        run: |
+          python data/generate_dataset.py
+          if PYTHONPATH=src python -m dataqa check; then echo "Gate passed a broken dataset"; exit 1; else echo "Gate refused it, as designed"; fi
