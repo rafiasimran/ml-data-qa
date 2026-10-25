@@ -5,8 +5,8 @@ The QA suite reports problems. This script demonstrates why they matter, by
 training the same model twice: once on the data exactly as delivered, and once
 on data with the suite's blocking findings addressed.
 
-The result is counter-intuitive and is the whole point of the project. The
-model trained on the broken data scores far HIGHER. If the only thing you look
+The model trained on the broken data scores much higher, which is the
+opposite of what you'd expect. If the only thing you look
 at is the headline metric, the defective pipeline looks like the better one.
 
 Run:  python experiments/train_model.py
@@ -142,13 +142,11 @@ def main() -> int:
 
     delta = results["as_delivered"]["auc"] - results["qa_cleaned"]["auc"]
     print(f"""
-  The model trained on the data as delivered scores {delta:.3f} AUC HIGHER than
-  the one trained on cleaned data. That gap is not skill. It is the model
-  reading a column filled in after the outcome was known, and being tested
-  on rows it had already memorised.
+  The model trained on the data as delivered scores {delta:.3f} AUC higher than
+  the one trained on cleaned data. It is using a column filled in after the
+  result was known, and it is tested on rows it already saw in training.
 
-  The honest number is {results['qa_cleaned']['auc']:.4f}. It is the lower one,
-  and it is the only one that would survive contact with production.
+  The real number is {results['qa_cleaned']['auc']:.4f}, the lower one.
 """)
     print("=" * width)
 
